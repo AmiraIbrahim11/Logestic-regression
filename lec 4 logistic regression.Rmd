@@ -1,0 +1,123 @@
+---
+title: "logistic regression"
+author: "Amira Ibrahim"
+date: "September 5, 2019"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r dataset_for_logistic_homework_lec4, echo=TRUE}
+library(readr)
+Logestic_Data <- read.csv(file.choose(),header=TRUE)
+```
+#make sure that categorical variables read as a factor :
+```{r , echo=TRUE}
+Logestic_Data$outcome <- as.factor(Logestic_Data$outcome)
+Logestic_Data$Treatment <- as.factor(Logestic_Data$Treatment)
+Logestic_Data$SEX <- as.factor(Logestic_Data$SEX)
+```
+
+```{r , echo=TRUE}
+library(dplyr)
+logistic_regression <- Logestic_Data %>%
+mutate( Outcome_dummy = (ifelse(outcome == "Success" , 1 , 0)), Treatment_dummy = (ifelse(Treatment == "Newdrug" , 1 , 0)), Sex_dummy = (ifelse(SEX == "Male" , 1 , 0)))
+attach(logistic_regression)
+```
+
+##Check normality 
+```{r , echo=TRUE}
+library(moments)
+skewness(HDL_LEVEL)
+```
+accepted range from -1 to +1 
+
+```{r , echo=TRUE}
+kurtosis(HDL_LEVEL)
+```
+accepted range from -2 to +2 , may to +3 
+
+```{r , echo=TRUE}
+boxplot(HDL_LEVEL~Treatment , xlab = "Treatment" , ylab = "HDL_Level" , main = "HDL_level acc to Treatment")
+```
+Visually , Data is normaly distributed
+
+```{r , echo=TRUE}
+shapiro.test(HDL_LEVEL)
+```
+P-value > 0.05 , so it is normally distributed
+
+#test H0: No Change in HDL level according to Treatment :
+```{r , echo=TRUE}
+t.test(HDL_LEVEL~Treatment , mu = 0 , paired= FALSE , alternative= "two.sided" ,data=logistic_regression)
+```
+P-value > 0.05 , fail to reject H0
+
+#Test H0 : No Diffrence in outcome Between Placebo & new drug
+```{r , echo=TRUE}
+chisq.test(table(outcome,Treatment))
+```
+p-value < 0.05 , Reject H0 
+
+#Test H0 : Sex has no effect on outcome
+```{r , echo=TRUE}
+chisq.test(table(outcome,SEX))
+```
+P-value > 0.05 , Fail to reject H0
+
+#Determination of correlation between treatment & outcome :
+```{r , echo=TRUE}
+cor(Outcome_dummy , Treatment_dummy , method = "spearman" )
+```
+It is +ve moderate correlated
+
+##Find correlation between variables :
+```{r , echo=TRUE}
+correlations <- cor(logistic_regression[,4:7])
+library(corrplot)
+corrplot(correlations , method = "circle")
+correlations
+```
+there is -ve weak correlation between sex & treatment
+
+there is +ve weak correlation between HDL level & treatment
+
+there is +ve moderate correlation between outcome & treatment
+
+#Bad model in log regrission :
+```{r , echo=TRUE}
+badmodel <- glm(outcome~Treatment+SEX+HDL_LEVEL , family = "binomial" , data = logistic_regression)
+summary(badmodel)
+```
+
+#determination of refrence value  : 
+```{r , echo=TRUE}
+logistic_regression <- within(logistic_regression,Treatment<-relevel(Treatment,ref="Placebo"))
+goodmodel <-glm(outcome~Treatment+SEX+HDL_LEVEL , family = "binomial" , data = logistic_regression)
+summary(goodmodel)
+```
+
+```{r , echo=TRUE}
+exp(goodmodel$coefficients)
+```
+
+```{r , echo=TRUE}
+library(Greg)
+printCrudeAndAdjustedModel(goodmodel)[-1,]
+```
+#cruded value (the value of OR in the presence of other variables)
+the odds of success for patient recieving newdrug taking the considration the sex and HDL level is 10.09
+
+the odds of success for a male patient who is recieving newdrug and has HDL level is 2.33
+
+the odds of success for a patient in the presence of  HDL level taking the considration the sex and receiving new drug is 1.10
+
+#Adjusted values (the value of OR of variables without the presences of other variables)
+the odds of the success for the patient recieving new drug is 10.88
+
+the odds of the success for a male patient is 2.46
+
+the odds of success for a patient with HDL level is 1.07
+
+
+
